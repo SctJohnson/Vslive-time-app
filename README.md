@@ -8,7 +8,8 @@ design decisions.
 
 **Install (Android):** open the Pages URL in Chrome → menu ⋮ → *Add to Home screen*.
 
-**Update the schedule:** edit `schedule-data.json` (local only, gitignored), run
-`python tools/encrypt.py`, bump `VERSION` in `sw.js`, push to `main`. The schedule is
-stored encrypted (`payload.enc.js`) — the passphrase never leaves the dev machine and
-the phone.
+**Update the schedule:** from the desktop, edit `schedule-data.json` (local only,
+gitignored) and run `python tools/schedule_tool.py encrypt` + `bump`, then push. From
+anywhere else, use the **Update Schedule** Actions workflow (see `CLAUDE.md`). The
+schedule is stored encrypted (`payload.enc.js`); the passphrase lives only on the dev
+machine, the phone, and the `SCHEDULE_PASSPHRASE` Actions secret.

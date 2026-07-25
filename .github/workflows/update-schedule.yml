@@ -1,0 +1,104 @@
+name: Update Schedule
+
+# Applies schedule edits without any local machine: decrypts the payload with the
+# SCHEDULE_PASSPHRASE repo secret, applies the ops, re-encrypts, bumps the service
+# worker version, commits, and deploys Pages itself (a GITHUB_TOKEN push does not
+# trigger the regular deploy workflow).
+#
+# Two entry points:
+#   - workflow_dispatch with an `edits` JSON input
+#   - a push to main that changes pending-edits.json
+# Both channels are PUBLICLY VISIBLE in this repo — conference-public facts only
+# (rooms, speakers, times). Personal travel edits happen on the desktop.
+
+on:
+  workflow_dispatch:
+    inputs:
+      edits:
+        description: 'JSON array of edit ops (see tools/schedule_tool.py header)'
+        required: true
+        type: string
+  push:
+    branches: [main]
+    paths: ['pending-edits.json']
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      SCHEDULE_PASSPHRASE: ${{ secrets.SCHEDULE_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect edits
+        id: collect
+        env:
+          DISPATCH_EDITS: ${{ inputs.edits }}
+        run: |
+          if [ -n "$DISPATCH_EDITS" ]; then
+            printf '%s' "$DISPATCH_EDITS" > edits.json
+          else
+            cp pending-edits.json edits.json
+          fi
+          if [ "$(python3 -c 'import json;print(len(json.load(open("edits.json"))))')" = "0" ]; then
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Guard secret present
+        if: steps.collect.outputs.empty == 'false'
+        run: |
+          if [ -z "$SCHEDULE_PASSPHRASE" ]; then
+            echo "SCHEDULE_PASSPHRASE secret is not set" >&2; exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.collect.outputs.empty == 'false'
+        with:
+          python-version: '3.12'
+
+      - name: Apply edits and re-encrypt
+        if: steps.collect.outputs.empty == 'false'
+        run: |
+          pip install --quiet cryptography
+          python tools/schedule_tool.py decrypt
+          python tools/schedule_tool.py apply edits.json
+          python tools/schedule_tool.py encrypt
+          python tools/schedule_tool.py bump
+
+      - name: Remove plaintext before anything is published
+        if: steps.collect.outputs.empty == 'false'
+        run: rm -f schedule-data.json edits.json
+
+      - name: Commit ciphertext and cleared queue
+        if: steps.collect.outputs.empty == 'false'
+        run: |
+          printf '[]\n' > pending-edits.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add payload.enc.js sw.js pending-edits.json
+          git commit -m "Apply schedule edits via workflow"
+          git push
+
+      - uses: actions/configure-pages@v5
+        if: steps.collect.outputs.empty == 'false'
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.collect.outputs.empty == 'false'
+        with:
+          path: '.'
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        if: steps.collect.outputs.empty == 'false'

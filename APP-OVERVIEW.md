@@ -68,10 +68,27 @@ GitHub Actions from `main` (`.github/workflows/deploy.yml`) → GitHub Pages via
 `deploy-pages`, `paths-ignore: '**.md'` so doc-only changes skip the deploy. No build
 step — the repo root *is* the site.
 
-**Schedule update path:** edit `schedule-data.json` (local only) → run
-`python tools/encrypt.py` (reads `.passphrase`) → **bump `VERSION` in `sw.js`** → push.
-Without the VERSION bump, installed clients keep the old cached `payload.enc.js`
-(index.html itself refreshes via network-first regardless).
+**Schedule update paths** (two, by design — Scott is at the conference with only a
+phone for a week):
+
+- **Desktop:** edit `schedule-data.json` → `python tools/schedule_tool.py encrypt`
+  (reads `.passphrase`) → `python tools/schedule_tool.py bump` → push. Without the
+  VERSION bump, installed clients keep the old cached `payload.enc.js` (index.html
+  itself refreshes via network-first regardless).
+- **Cloud (no desktop):** the `update-schedule.yml` workflow holds the passphrase as
+  the `SCHEDULE_PASSPHRASE` Actions secret and does decrypt → apply ops → encrypt →
+  bump → commit → deploy entirely in the runner. Triggered by `workflow_dispatch`
+  with an `edits` input, or by pushing ops into `pending-edits.json`. The runner
+  deploys Pages itself because a GITHUB_TOKEN push doesn't trigger the regular deploy
+  workflow. Plaintext exists in the runner for seconds and is deleted before the
+  Pages artifact is built (the artifact would otherwise publish it — that `rm` step
+  is load-bearing).
+
+**Known accepted leak:** the edit channel (`pending-edits.json`, dispatch inputs) is
+publicly visible, so it carries conference-public facts only — room/speaker/time
+changes that VSLive publishes anyway. Personal travel edits stay desktop-only. The
+upgrade path if this ever matters: hybrid public-key encryption of the edits file
+(public key in repo, private key as a second Actions secret).
 
 ## Known trade-offs
 
