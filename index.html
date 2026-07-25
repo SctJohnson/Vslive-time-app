@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1420">
+<title>VSLive! Seattle</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png">
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #1a2130;
+    --card-active: #212a3d;
+    --border: #2b3550;
+    --text: #e8ecf4;
+    --dim: #9aa5bc;
+    --accent: #4da3ff;
+    --star: #ffd166;
+    --amber: #ffb454;
+    --warn-bg: #3a2a14;
+    --warn-border: #8a6420;
+    --green: #6fcf97;
+    --now-bg: #16324a;
+    --now-border: #2d6ca3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+    padding-bottom: 40px;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: env(safe-area-inset-top) 0 0 0;
+  }
+  .title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 10px 14px 6px;
+  }
+  .title-row h1 { font-size: 1.05rem; font-weight: 700; }
+  .title-row .clock { font-size: 0.85rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 4px 14px 10px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--card);
+    color: var(--dim);
+    padding: 6px 13px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #06111f; }
+  main { padding: 12px 14px; max-width: 640px; margin: 0 auto; }
+  .day-title { font-size: 1.0rem; font-weight: 700; margin: 2px 0 10px; color: var(--accent); }
+  .banner {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    margin-bottom: 12px;
+    color: #f4d9a6;
+  }
+  .banner b { color: #ffe1a1; }
+  .nownext {
+    background: var(--now-bg);
+    border: 1px solid var(--now-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+  .nownext .nn-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #7fb8e8;
+    font-weight: 700;
+  }
+  .nownext .nn-line { font-size: 0.95rem; margin-top: 2px; }
+  .nownext .nn-line + .nn-label { margin-top: 8px; }
+  .nownext .nn-sub { font-size: 0.82rem; color: var(--dim); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 12px;
+    margin-bottom: 9px;
+    cursor: pointer;
+  }
+  .card.star { border-left: 4px solid var(--star); }
+  .card.past { opacity: 0.5; }
+  .card.current { background: var(--card-active); border-color: var(--now-border); box-shadow: 0 0 0 1px var(--now-border); }
+  .card .top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .card .top .room92 { color: var(--amber); font-weight: 700; }
+  .card .top .room98 { color: var(--dim); }
+  .card .name { font-size: 0.95rem; font-weight: 600; margin-top: 3px; }
+  .card .name .code { color: var(--accent); font-weight: 700; margin-right: 5px; }
+  .card .name .starmark { color: var(--star); }
+  .card .speakers { font-size: 0.82rem; color: var(--dim); margin-top: 2px; font-style: italic; }
+  .card .itemnote { font-size: 0.82rem; color: #f4d9a6; margin-top: 5px; }
+  .card .tentative-tag {
+    display: inline-block; font-size: 0.72rem; color: var(--dim);
+    border: 1px dashed var(--border); border-radius: 8px; padding: 1px 7px; margin-top: 4px;
+  }
+  .walkwarn {
+    font-size: 0.78rem; color: var(--amber); margin: -3px 0 9px 4px;
+  }
+  .notes-area { margin-top: 9px; display: none; }
+  .card.open .notes-area { display: block; }
+  .notes-area textarea {
+    width: 100%;
+    min-height: 84px;
+    background: #10161f;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+  }
+  .notes-area textarea:focus { outline: 1px solid var(--accent); }
+  .has-note::after {
+    content: "📝";
+    font-size: 0.75rem;
+    margin-left: 6px;
+  }
+  .info-section { margin-bottom: 18px; }
+  .info-section h2 { font-size: 0.95rem; color: var(--accent); margin-bottom: 8px; }
+  .info-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 0.88rem;
+  }
+  .info-card .k { color: var(--dim); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .info-card .v { margin-top: 2px; word-break: break-word; }
+  .info-card .v code {
+    background: #10161f; border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; font-size: 0.85rem;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    background: var(--accent);
+    color: #06111f;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .btn.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--green); color: #06111f; font-weight: 700; font-size: 0.9rem;
+    padding: 9px 18px; border-radius: 20px; z-index: 200; display: none;
+  }
+  /* Lock screen */
+  #lock {
+    position: fixed; inset: 0; z-index: 300;
+    background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #lock h2 { font-size: 1.1rem; margin-bottom: 14px; }
+  #lock input {
+    width: 100%; max-width: 340px;
+    background: #10161f; color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; font-size: 1rem;
+  }
+  #lock input:focus { outline: 1px solid var(--accent); }
+  #lock .btn { max-width: 340px; margin-top: 10px; }
+  #lock .err { color: #ff8a8a; font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="lock">
+  <h2>🔒 VSLive! Seattle</h2>
+  <input type="password" id="pp" placeholder="Passphrase" autocomplete="current-password">
+  <button class="btn" id="unlock">Unlock</button>
+  <div class="err" id="lock-err"></div>
+</div>
+<header class="hidden" id="app-header">
+  <div class="title-row">
+    <h1>VSLive! Seattle</h1>
+    <span class="clock" id="clock"></span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</header>
+<main id="main"></main>
+<div class="toast" id="toast"></div>
+
+<script src="./payload.enc.js"></script>
+<script>
+"use strict";
+// Schedule data lives encrypted in payload.enc.js (see tools/encrypt.py). The
+// public repo and site carry ciphertext only; nothing about where anyone will
+// be is readable without the passphrase.
+let DAYS = [], LOGISTICS = [], THEMES = "", WATCHOUTS = [];
+
+// ---------- Crypto ----------
+const b64ToBuf = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function decryptPayload(passphrase) {
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: b64ToBuf(ENC.salt), iterations: ENC.iter, hash: "SHA-256" },
+    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: b64ToBuf(ENC.iv) }, key, b64ToBuf(ENC.data));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+async function tryUnlock(passphrase, fromCache) {
+  const data = await decryptPayload(passphrase).catch(() => null);
+  if (!data) {
+    if (fromCache) localStorage.removeItem("vsl-pp");
+    return false;
+  }
+  // Cached so re-encrypted payloads (new salt) still unlock without a re-prompt.
+  // Device-local only — same exposure as the decrypted data already on screen.
+  localStorage.setItem("vsl-pp", passphrase);
+  DAYS = data.days; LOGISTICS = data.logistics; THEMES = data.themes; WATCHOUTS = data.watchouts;
+  document.getElementById("lock").classList.add("hidden");
+  document.getElementById("app-header").classList.remove("hidden");
+  boot();
+  return true;
+}
+
+async function initLock() {
+  const cached = localStorage.getItem("vsl-pp");
+  if (cached && await tryUnlock(cached, true)) return;
+  const pp = document.getElementById("pp");
+  const err = document.getElementById("lock-err");
+  const go = async () => {
+    err.textContent = "";
+    if (!pp.value) return;
+    const btn = document.getElementById("unlock");
+    btn.textContent = "Unlocking…";
+    if (!await tryUnlock(pp.value, false)) {
+      btn.textContent = "Unlock";
+      err.textContent = "Wrong passphrase";
+      pp.select();
+    }
+  };
+  document.getElementById("unlock").addEventListener("click", go);
+  pp.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  pp.focus();
+}
+
+// ---------- Time (always Pacific) ----------
+function ptNow() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).formatToParts(new Date());
+  const get = t => parts.find(p => p.type === t).value;
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    mins: parseInt(get("hour"), 10) * 60 + parseInt(get("minute"), 10)
+  };
+}
+function fmtMins(m) {
+  let h = Math.floor(m / 60), min = m % 60;
+  const ap = h >= 12 ? "p" : "a";
+  h = h % 12 || 12;
+  return `${h}:${String(min).padStart(2, "0")}${ap}`;
+}
+
+// ---------- State ----------
+let activeTab = null; // day key or "info"
+const noteKey = id => `vsl-note-${id}`;
+const getNote = id => localStorage.getItem(noteKey(id)) || "";
+
+function defaultTab() {
+  const { date } = ptNow();
+  if (date < DAYS[0].key) return DAYS[0].key;
+  const d = DAYS.find(x => x.key === date);
+  return d ? d.key : "info";
+}
+
+// ---------- Render ----------
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+function renderTabs() {
+  const el = document.getElementById("tabs");
+  el.innerHTML = "";
+  for (const d of DAYS) {
+    const b = document.createElement("button");
+    b.className = "tab" + (activeTab === d.key ? " active" : "");
+    b.textContent = d.tab;
+    b.onclick = () => { activeTab = d.key; render(); };
+    el.appendChild(b);
+  }
+  const info = document.createElement("button");
+  info.className = "tab" + (activeTab === "info" ? " active" : "");
+  info.textContent = "ℹ Info";
+  info.onclick = () => { activeTab = "info"; render(); };
+  el.appendChild(info);
+}
+
+function nowNextHtml(day) {
+  const { date, mins } = ptNow();
+  if (date !== day.key) return "";
+  const current = day.items.filter(it => !it.loose && it.start <= mins && mins < it.end);
+  const next = day.items.find(it => !it.loose && it.start > mins);
+  if (!current.length && !next) return "";
+  let h = '<div class="nownext">';
+  for (const it of current) {
+    h += `<div class="nn-label">Now</div><div class="nn-line">${it.code ? it.code + " · " : ""}${esc(it.title)}` +
+         `<span class="nn-sub"> — ${esc(it.room || "")}${it.bldg === 92 ? " (Bldg 92)" : ""} · ends ${fmtMins(it.end)}</span></div>`;
+  }
+  if (next) {
+    const wait = next.start - mins;
+    const inTxt = wait >= 60 ? `in ${Math.floor(wait / 60)}h ${wait % 60}m` : `in ${wait} min`;
+    h += `<div class="nn-label">Next · ${inTxt}</div><div class="nn-line">${next.code ? next.code + " · " : ""}${esc(next.title)}` +
+         `<span class="nn-sub"> — ${esc(next.room || "")}${next.bldg === 92 ? " (Bldg 92 — walk!)" : ""} · ${fmtMins(next.start)}</span></div>`;
+  }
+  return h + "</div>";
+}
+
+function renderDay(day) {
+  const { date, mins } = ptNow();
+  const isToday = date === day.key;
+  let h = `<div class="day-title">${esc(day.title)}</div>`;
+  if (day.banner) h += `<div class="banner">${day.banner}</div>`;
+  h += nowNextHtml(day);
+
+  let prevBldg = null;
+  for (const it of day.items) {
+    // building-cross warning between consecutive room sessions
+    if (it.bldg && prevBldg && it.bldg !== prevBldg) {
+      h += `<div class="walkwarn">⚠ Building change ${prevBldg} → ${it.bldg} — allow walking time</div>`;
+    }
+    if (it.bldg) prevBldg = it.bldg;
+
+    const past = isToday && !it.loose && it.end <= mins;
+    const current = isToday && !it.loose && it.start <= mins && mins < it.end;
+    const note = getNote(it.id);
+    const cls = ["card", it.star ? "star" : "", past ? "past" : "", current ? "current" : ""].filter(Boolean).join(" ");
+    const roomCls = it.bldg === 92 ? "room92" : "room98";
+    const roomTxt = it.room ? `${esc(it.room)}${it.bldg ? ` (${it.bldg})` : ""}` : "";
+    h += `<div class="${cls}" data-id="${it.id}">
+      <div class="top"><span>${it.loose ? "≈ " : ""}${esc(it.time)}</span><span class="${roomCls}">${roomTxt}</span></div>
+      <div class="name${note ? " has-note" : ""}">${it.code ? `<span class="code">${it.code}</span>` : ""}${it.star ? '<span class="starmark">★ </span>' : ""}${esc(it.title)}</div>
+      ${it.speakers ? `<div class="speakers">${esc(it.speakers)}</div>` : ""}
+      ${it.note ? `<div class="itemnote">${esc(it.note)}</div>` : ""}
+      ${it.tentative ? `<div class="tentative-tag">tentative</div>` : ""}
+      <div class="notes-area">
+        <textarea placeholder="Session notes…" data-note="${it.id}">${esc(note)}</textarea>
+      </div>
+    </div>`;
+  }
+  return h;
+}
+
+function renderInfo() {
+  let h = `<div class="day-title">Logistics</div>`;
+  for (const [k, v] of LOGISTICS) {
+    h += `<div class="info-card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  }
+  h += `<div class="info-section" style="margin-top:18px"><h2>Watch-outs</h2>`;
+  for (const w of WATCHOUTS) h += `<div class="info-card">${esc(w)}</div>`;
+  h += `</div><div class="info-section"><h2>Themes I'm tracking</h2><div class="info-card">${esc(THEMES)}</div></div>`;
+  h += `<div class="info-section"><h2>My notes</h2>
+    <button class="btn" id="export-notes">Copy all notes as Markdown</button>
+    <button class="btn secondary" id="share-notes">Share notes…</button>
+  </div>`;
+  return h;
+}
+
+function render() {
+  renderTabs();
+  const main = document.getElementById("main");
+  if (activeTab === "info") {
+    main.innerHTML = renderInfo();
+    document.getElementById("export-notes").onclick = () => exportNotes(false);
+    document.getElementById("share-notes").onclick = () => exportNotes(true);
+    return;
+  }
+  const day = DAYS.find(d => d.key === activeTab);
+  main.innerHTML = renderDay(day);
+
+  // expand/collapse + note autosave
+  main.querySelectorAll(".card").forEach(card => {
+    card.addEventListener("click", e => {
+      if (e.target.tagName === "TEXTAREA") return;
+      card.classList.toggle("open");
+      if (card.classList.contains("open")) card.querySelector("textarea").focus();
+    });
+  });
+  main.querySelectorAll("textarea[data-note]").forEach(ta => {
+    ta.addEventListener("input", () => {
+      const id = ta.dataset.note;
+      if (ta.value) localStorage.setItem(noteKey(id), ta.value);
+      else localStorage.removeItem(noteKey(id));
+      const name = ta.closest(".card").querySelector(".name");
+      name.classList.toggle("has-note", !!ta.value);
+    });
+  });
+}
+
+// ---------- Notes export ----------
+function buildNotesMarkdown() {
+  let out = "# VSLive! Seattle 2026 — Session Notes\n";
+  for (const d of DAYS) {
+    const noted = d.items.filter(it => getNote(it.id));
+    if (!noted.length) continue;
+    out += `\n## ${d.title}\n`;
+    for (const it of noted) {
+      out += `\n### ${it.code ? it.code + " — " : ""}${it.title}${it.speakers ? ` (${it.speakers})` : ""}\n${getNote(it.id)}\n`;
+    }
+  }
+  return out;
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  setTimeout(() => { t.style.display = "none"; }, 1800);
+}
+async function exportNotes(share) {
+  const md = buildNotesMarkdown();
+  if (share && navigator.share) {
+    try { await navigator.share({ title: "VSLive notes", text: md }); } catch {}
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(md);
+    toast("Notes copied ✓");
+  } catch {
+    prompt("Copy your notes:", md);
+  }
+}
+
+// ---------- Clock + refresh ----------
+function tick() {
+  const { mins } = ptNow();
+  document.getElementById("clock").textContent = fmtMins(mins) + " PT";
+}
+setInterval(() => {
+  if (!DAYS.length) return;
+  tick();
+  // re-render the active day so now/next + past-fading stay fresh (skip if a note is being typed)
+  if (activeTab !== "info" && document.activeElement.tagName !== "TEXTAREA") render();
+}, 30000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && DAYS.length) { tick(); if (document.activeElement.tagName !== "TEXTAREA") render(); }
+});
+
+// ---------- Init ----------
+function boot() {
+  activeTab = defaultTab();
+  tick();
+  render();
+}
+
+initLock();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# Plaintext schedule + passphrase must never reach the public repo.
+schedule-data.json
+.passphrase
