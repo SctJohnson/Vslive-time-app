@@ -469,6 +469,28 @@ async function exportNotes(share) {
   }
 }
 
+// ---------- Swipe between tabs ----------
+// Threshold + angle check so vertical scrolling never flips the day.
+let touchX = null, touchY = null;
+const mainEl = document.getElementById("main");
+mainEl.addEventListener("touchstart", e => {
+  touchX = e.touches[0].clientX; touchY = e.touches[0].clientY;
+}, { passive: true });
+mainEl.addEventListener("touchend", e => {
+  if (touchX === null || !DAYS.length) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  touchX = touchY = null;
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  const order = [...DAYS.map(d => d.key), "info"];
+  const next = order.indexOf(activeTab) + (dx < 0 ? 1 : -1);
+  if (next < 0 || next >= order.length) return;
+  activeTab = order[next];
+  render();
+  const chip = document.querySelector(".tab.active");
+  if (chip) chip.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+}, { passive: true });
+
 // ---------- Clock + refresh ----------
 function tick() {
   const { mins } = ptNow();
