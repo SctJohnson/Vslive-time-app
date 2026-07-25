@@ -147,6 +147,46 @@
     resize: vertical;
   }
   .notes-area textarea:focus { outline: 1px solid var(--accent); }
+  .note-expand {
+    margin-top: 6px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--dim);
+    font-size: 0.8rem;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  /* Full-screen note editor */
+  #note-editor {
+    position: fixed; inset: 0; z-index: 400;
+    background: var(--bg);
+    display: none; flex-direction: column;
+  }
+  #note-editor.open { display: flex; }
+  #note-editor .ne-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: calc(env(safe-area-inset-top) + 10px) 14px 10px;
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  #note-editor .ne-title {
+    font-size: 0.92rem; font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #note-editor .ne-done {
+    flex: 0 0 auto;
+    background: var(--accent); color: #06111f;
+    border: none; border-radius: 8px;
+    padding: 8px 18px; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+  }
+  #note-editor textarea {
+    flex: 1; width: 100%;
+    background: #10161f; color: var(--text);
+    border: none; outline: none; resize: none;
+    padding: 12px 14px;
+    font-family: inherit; font-size: 1rem; line-height: 1.5;
+  }
   .has-note::after {
     content: "📝";
     font-size: 0.75rem;
@@ -222,6 +262,13 @@
   <div class="tabs" id="tabs"></div>
 </header>
 <main id="main"></main>
+<div id="note-editor">
+  <div class="ne-head">
+    <div class="ne-title" id="ne-title"></div>
+    <button class="ne-done" id="ne-done">Done</button>
+  </div>
+  <textarea id="ne-text" placeholder="Notes…"></textarea>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="./payload.enc.js"></script>
@@ -384,6 +431,7 @@ function renderDay(day) {
       ${it.tentative ? `<div class="tentative-tag">tentative</div>` : ""}
       <div class="notes-area">
         <textarea placeholder="Session notes…" data-note="${it.id}">${esc(note)}</textarea>
+        <button class="note-expand" data-expand="${it.id}">⤢ Full-screen notes</button>
       </div>
     </div>`;
   }
@@ -432,9 +480,46 @@ function render() {
       else localStorage.removeItem(noteKey(id));
       const name = ta.closest(".card").querySelector(".name");
       name.classList.toggle("has-note", !!ta.value);
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    });
+  });
+  main.querySelectorAll("[data-expand]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      openNoteEditor(btn.dataset.expand);
     });
   });
 }
+
+// ---------- Full-screen note editor ----------
+const neEl = document.getElementById("note-editor");
+const neText = document.getElementById("ne-text");
+let neId = null;
+
+function findItem(id) {
+  for (const d of DAYS) for (const it of d.items) if (it.id === id) return it;
+  return null;
+}
+function openNoteEditor(id) {
+  const it = findItem(id);
+  if (!it) return;
+  neId = id;
+  document.getElementById("ne-title").textContent = (it.code ? it.code + " · " : "") + it.title;
+  neText.value = getNote(id);
+  neEl.classList.add("open");
+  neText.focus();
+}
+neText.addEventListener("input", () => {
+  if (!neId) return;
+  if (neText.value) localStorage.setItem(noteKey(neId), neText.value);
+  else localStorage.removeItem(noteKey(neId));
+});
+document.getElementById("ne-done").addEventListener("click", () => {
+  neEl.classList.remove("open");
+  neId = null;
+  render();
+});
 
 // ---------- Notes export ----------
 function buildNotesMarkdown() {
