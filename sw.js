@@ -1,7 +1,7 @@
 "use strict";
 // Bump VERSION on any deploy that changes cached files — activates the new cache
 // and drops the old one on next load.
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `vslive-${VERSION}`;
 const PRECACHE = [
   "./",
@@ -30,6 +30,9 @@ self.addEventListener("activate", e => {
 // cache-first (static assets).
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+  // Extensions inject chrome-extension:// requests on desktop; Cache.put rejects
+  // non-http(s) schemes, so only handle same-origin requests.
+  if (!e.request.url.startsWith(self.location.origin)) return;
   if (e.request.mode === "navigate") {
     e.respondWith(
       Promise.race([
