@@ -234,6 +234,36 @@
     background: #10161f; border: 1px solid var(--border); border-radius: 5px;
     padding: 1px 6px; font-size: 0.85rem;
   }
+  /* Meal card tracker */
+  .mc-remaining { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mc-remaining.spent { color: #ff8a8a; }
+  .mc-remaining .mc-of { font-size: 0.82rem; font-weight: 400; color: var(--dim); }
+  .mc-hint { font-size: 0.8rem; color: var(--star); margin-top: 4px; line-height: 1.35; }
+  .mc-row { display: flex; gap: 6px; margin-top: 10px; }
+  .mc-row input {
+    background: #10161f; color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 10px; font-family: inherit; font-size: 0.9rem; min-width: 0;
+  }
+  .mc-row input[type="number"] { flex: 0 0 84px; }
+  .mc-row input[type="text"] { flex: 1 1 auto; }
+  .mc-row input:focus { outline: 1px solid var(--accent); }
+  .mc-row button {
+    flex: 0 0 auto; background: var(--accent); color: #06111f;
+    border: none; border-radius: 8px; padding: 9px 14px;
+    font-weight: 700; font-size: 0.9rem; cursor: pointer;
+  }
+  .mc-list { list-style: none; margin-top: 10px; }
+  .mc-list li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 0; border-top: 1px solid var(--border); font-size: 0.88rem;
+  }
+  .mc-list .mc-amt { font-variant-numeric: tabular-nums; font-weight: 700; flex: 0 0 auto; }
+  .mc-list .mc-what { color: var(--dim); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mc-list .mc-del {
+    flex: 0 0 auto; background: none; border: none; color: var(--dim);
+    font-size: 1.1rem; cursor: pointer; padding: 0 4px;
+  }
   .btn {
     display: block;
     width: 100%;
@@ -474,11 +504,72 @@ function renderInfo() {
   h += `<div class="info-section" style="margin-top:18px"><h2>Watch-outs</h2>`;
   for (const w of WATCHOUTS) h += `<div class="info-card">${esc(w)}</div>`;
   h += `</div><div class="info-section"><h2>Themes I'm tracking</h2><div class="info-card">${esc(THEMES)}</div></div>`;
+  h += `<div class="info-section"><h2>Meal card balance</h2>
+    <div class="info-card">
+      <div class="mc-remaining" id="mc-remaining"></div>
+      <div class="mc-hint" id="mc-hint"></div>
+      <div class="mc-row">
+        <input type="number" inputmode="decimal" step="0.01" min="0" id="mc-amt" placeholder="$">
+        <input type="text" id="mc-what" placeholder="What for (optional)">
+        <button id="mc-add">Add</button>
+      </div>
+      <ul class="mc-list" id="mc-list"></ul>
+      <button class="btn secondary" id="mc-start-edit">Change starting balance</button>
+    </div>
+  </div>`;
   h += `<div class="info-section"><h2>My notes</h2>
     <button class="btn" id="export-notes">Copy all notes as Markdown</button>
     <button class="btn secondary" id="share-notes">Share notes…</button>
   </div>`;
   return h;
+}
+
+// ---------- Meal card tracker (device-local, like notes) ----------
+const MC_START = "vsl-meal-start", MC_ITEMS = "vsl-meal-items";
+const mcStart = () => parseFloat(localStorage.getItem(MC_START)) || 80;
+const mcItems = () => { try { return JSON.parse(localStorage.getItem(MC_ITEMS)) || []; } catch { return []; } };
+const mcSave = a => localStorage.setItem(MC_ITEMS, JSON.stringify(a));
+const money = n => (n < 0 ? "-$" : "$") + Math.abs(n).toFixed(2);
+
+function renderMeal() {
+  const items = mcItems();
+  const spent = items.reduce((s, x) => s + x.amt, 0);
+  const left = mcStart() - spent;
+  const rem = document.getElementById("mc-remaining");
+  rem.className = "mc-remaining" + (left <= 0 ? " spent" : "");
+  rem.innerHTML = `${money(left)} <span class="mc-of">left of ${money(mcStart())}</span>`;
+  // Sit-down places authorize the bill plus ~25% for tip, so the spendable bill
+  // is lower than the balance — this is the number that actually matters.
+  const hint = document.getElementById("mc-hint");
+  hint.textContent = left <= 0
+    ? "Card is spent — everything goes on your own card now."
+    : `Restaurant bill up to about ${money(left / 1.25)} clears the ~25% tip pre-auth. Above that, pay the rest yourself and say so before they run it.`;
+  const list = document.getElementById("mc-list");
+  list.innerHTML = items.map((x, i) =>
+    `<li><span class="mc-amt">${money(x.amt)}</span><span class="mc-what">${esc(x.what || "")}</span>` +
+    `<button class="mc-del" data-i="${i}" aria-label="Remove">×</button></li>`).join("");
+  list.querySelectorAll(".mc-del").forEach(b => b.addEventListener("click", () => {
+    const a = mcItems(); a.splice(+b.dataset.i, 1); mcSave(a); renderMeal();
+  }));
+}
+
+function wireMeal() {
+  renderMeal();
+  const amt = document.getElementById("mc-amt"), what = document.getElementById("mc-what");
+  const add = () => {
+    const v = parseFloat(amt.value);
+    if (!(v > 0)) return;
+    const a = mcItems(); a.push({ amt: v, what: what.value.trim() }); mcSave(a);
+    amt.value = ""; what.value = "";
+    renderMeal();
+  };
+  document.getElementById("mc-add").addEventListener("click", add);
+  amt.addEventListener("keydown", e => { if (e.key === "Enter") add(); });
+  what.addEventListener("keydown", e => { if (e.key === "Enter") add(); });
+  document.getElementById("mc-start-edit").addEventListener("click", () => {
+    const v = prompt("Starting balance:", mcStart());
+    if (v !== null && parseFloat(v) >= 0) { localStorage.setItem(MC_START, parseFloat(v)); renderMeal(); }
+  });
 }
 
 function render() {
@@ -488,6 +579,7 @@ function render() {
     main.innerHTML = renderInfo();
     document.getElementById("export-notes").onclick = () => exportNotes(false);
     document.getElementById("share-notes").onclick = () => exportNotes(true);
+    wireMeal();
     return;
   }
   const day = DAYS.find(d => d.key === activeTab);
@@ -651,10 +743,10 @@ setInterval(() => {
   // countdown stays live even while typing — it is the reason it is on screen
   if (neId) updateNeEnds();
   // re-render the active day so now/next + past-fading stay fresh (skip if a note is being typed)
-  if (activeTab !== "info" && document.activeElement.tagName !== "TEXTAREA") render();
+  if (activeTab !== "info" && !["TEXTAREA", "INPUT"].includes(document.activeElement.tagName)) render();
 }, 30000);
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && DAYS.length) { tick(); if (document.activeElement.tagName !== "TEXTAREA") render(); }
+  if (!document.hidden && DAYS.length) { tick(); if (!["TEXTAREA", "INPUT"].includes(document.activeElement.tagName)) render(); }
 });
 
 // ---------- Init ----------
