@@ -182,6 +182,17 @@
     font-size: 0.92rem; font-weight: 700;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  #note-editor .ne-ends {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    line-height: 1.15;
+    text-align: right;
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  #note-editor .ne-ends .ne-left { color: var(--accent); font-weight: 700; display: block; }
+  #note-editor .ne-ends .ne-left.soon { color: var(--amber); }
   #note-editor .ne-done {
     flex: 0 0 auto;
     background: var(--accent); color: #06111f;
@@ -273,6 +284,7 @@
 <div id="note-editor">
   <div class="ne-head">
     <div class="ne-title" id="ne-title"></div>
+    <div class="ne-ends" id="ne-ends"></div>
     <button class="ne-done" id="ne-done">Done</button>
   </div>
   <textarea id="ne-text" placeholder="Notes…"></textarea>
@@ -517,7 +529,24 @@ function openNoteEditor(id) {
   document.getElementById("ne-title").textContent = (it.code ? it.code + " · " : "") + it.title;
   neText.value = getNote(id);
   neEl.classList.add("open");
+  updateNeEnds();
   neText.focus();
+}
+
+// End time + live countdown beside Done, so it costs no note space.
+function updateNeEnds() {
+  const el = document.getElementById("ne-ends");
+  const it = neId && findItem(neId);
+  if (!it || it.loose) { el.innerHTML = ""; return; }
+  const { date, mins } = ptNow();
+  const day = DAYS.find(d => d.items.some(x => x.id === it.id));
+  let left = "";
+  if (day && day.key === date && mins < it.end && mins >= it.start - 30) {
+    const m = it.end - mins;
+    const txt = m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m left` : `${m} min left`;
+    left = `<span class="ne-left${m <= 10 ? " soon" : ""}">${txt}</span>`;
+  }
+  el.innerHTML = `${left}ends ${fmtMins(it.end)}`;
 }
 neText.addEventListener("input", () => {
   if (!neId) return;
@@ -593,6 +622,8 @@ function tick() {
 setInterval(() => {
   if (!DAYS.length) return;
   tick();
+  // countdown stays live even while typing — it is the reason it is on screen
+  if (neId) updateNeEnds();
   // re-render the active day so now/next + past-fading stay fresh (skip if a note is being typed)
   if (activeTab !== "info" && document.activeElement.tagName !== "TEXTAREA") render();
 }, 30000);
