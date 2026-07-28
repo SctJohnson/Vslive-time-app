@@ -134,6 +134,14 @@
   }
   .notes-area { margin-top: 9px; display: none; }
   .card.open .notes-area { display: block; }
+  .session-desc {
+    font-size: 0.85rem;
+    color: var(--dim);
+    line-height: 1.45;
+    margin-bottom: 9px;
+    padding-left: 9px;
+    border-left: 2px solid var(--border);
+  }
   .notes-area textarea {
     width: 100%;
     min-height: 84px;
@@ -430,6 +438,7 @@ function renderDay(day) {
       ${it.note ? `<div class="itemnote">${esc(it.note)}</div>` : ""}
       ${it.tentative ? `<div class="tentative-tag">tentative</div>` : ""}
       <div class="notes-area">
+        ${it.desc ? `<div class="session-desc">${esc(it.desc)}</div>` : ""}
         <textarea placeholder="Session notes…" data-note="${it.id}">${esc(note)}</textarea>
         <button class="note-expand" data-expand="${it.id}">⤢ Full-screen notes</button>
       </div>

@@ -1,7 +1,7 @@
 "use strict";
 // Bump VERSION on any deploy that changes cached files — activates the new cache
 // and drops the old one on next load.
-const VERSION = "v8";
+const VERSION = "v9";
 const CACHE = `vslive-${VERSION}`;
 const PRECACHE = [
   "./",
